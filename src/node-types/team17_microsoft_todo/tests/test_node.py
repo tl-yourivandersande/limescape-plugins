@@ -40,5 +40,5 @@ async def test_update_task_rejects_unapproved_fields():
         NODE_DIR, ctx,
         params={"credential_code": "graph-team", "task_list_id": "list", "task_id": "task", "action": "update_task", "task": {"title": "x", "id": "other"}},
     )
-    assert "error" in result[0]
+    assert "error" in result[0]["output"]
     assert not any(call.capability == "http" for call in ctx.calls)

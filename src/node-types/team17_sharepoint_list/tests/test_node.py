@@ -36,5 +36,5 @@ async def test_create_requires_object_fields_before_http():
     """Malformed create payload is rejected before any Graph request."""
     ctx = context()
     result = await run_node(NODE_DIR, ctx, params={"credential_code": "graph-team", "site_id": "s", "list_id": "l", "action": "create_item", "fields": []})
-    assert "error" in result[0]
+    assert "error" in result[0]["output"]
     assert not any(call.capability == "http" for call in ctx.calls)
