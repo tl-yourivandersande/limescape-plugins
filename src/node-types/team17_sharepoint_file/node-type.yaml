@@ -1,0 +1,38 @@
+schema_version: 1
+code: team17_sharepoint_file
+name: SharePoint document library
+ description: Read and write text files in SharePoint document libraries through Microsoft Graph.
+category: productivity
+icon:
+  lucide: files
+availability: general
+stage: stable
+runtime:
+  execution_mode: stream
+  trace: decorator
+  manages_output_keys: false
+  isolation: shared
+  timeout_seconds: 120
+capabilities: [credentials, http]
+dependencies: []
+io:
+  input_data: {}
+  output_data:
+    result: Microsoft Graph file metadata/content or a safe error
+form:
+  fields:
+    - {name: credential_mode, type: select, label: Credential mode, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}]}
+    - {name: credential_code, type: text, label: Studio Microsoft credential code, required: 1, max_length: 200, resolve_variables: false}
+    - {name: action, type: select, label: Action, required: 1, default: list_files, choices: [{name: List files, value: list_files}, {name: Get file metadata, value: get_file}, {name: Download text, value: download_text}, {name: Upload text, value: upload_text}]}
+    - {name: site_id, type: text, label: Site ID, required: 1, max_length: 500}
+    - {name: drive_id, type: text, label: Drive ID, required: 1, max_length: 500}
+    - {name: item_id, type: text, label: Drive item ID, required: 0, max_length: 500}
+    - {name: path, type: text, label: Destination path, required: 0, max_length: 1000}
+    - {name: content, type: textarea, label: UTF-8 text content, required: 0, max_length: 1000000}
+    - {name: input_keys, type: text, label: Input keys, required: 0, default: ''}
+    - {name: output_key, type: text, label: Output key, required: 0, default: result}
+  layout:
+    - id: tab-settings
+      sections:
+        - id: section-properties
+          fields: [credential_mode, credential_code, action, site_id, drive_id, item_id, path, content, input_keys, output_key]
