@@ -1,0 +1,30 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install tooling
+        run: |
+          uv sync
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Validate manifests
+        run: limescape-plugin validate
+      - name: Lock dependencies and download wheels
+        run: bash scripts/lock_dependencies.sh build
+      - name: Test
+        run: pytest
