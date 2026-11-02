@@ -4,8 +4,10 @@ Open-source Limescape plugin node types for team `17` (bundle key: `team17`). No
 
 This repository is public. Never commit customer data, real identifiers, credentials or secrets.
 
-## Microsoft Graph integration design
+## Microsoft Graph nodes
 
-The proposed SharePoint Lists, document-library and Microsoft To Do nodes are documented in [docs/microsoft-graph-integration.md](docs/microsoft-graph-integration.md). The design assumes Studio resolves a configured Microsoft OAuth credential to a current Microsoft Graph access token, including token refresh; the plugin consumes the token and does not implement OAuth. The exact credential type/value contract must be verified against the target Studio environment before implementation. This branch contains design documentation, not working Graph nodes.
+This branch adds initial nodes for [SharePoint Lists, document libraries and Microsoft To Do](docs/microsoft-graph-integration.md). They assume Studio resolves a Microsoft OAuth credential to a current Graph access token; OAuth and token refresh are not implemented in the plugin. The exact Studio credential type and access-token property are explicit placeholders in each node and must be mapped before execution.
+
+The initial scope supports List item read/create/update; UTF-8 text file list/metadata/download/upload; and To Do list/task read/create/update. Pagination, binary files, ETag conflict control and the exact Studio credential mapping remain follow-up or verification work. These nodes need review, CI and a Studio smoke test before release/activation.
 
 A release is made by merging reviewed code to `main` and tagging `vX.Y.Z`. Limescape administrators register the bundle source and activate each release; contributors do not merge or activate releases.
