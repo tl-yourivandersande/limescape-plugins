@@ -1,8 +1,8 @@
 schema_version: 1
 code: team17_sharepoint_file
 name: SharePoint document library
- description: Read and write text files in SharePoint document libraries through Microsoft Graph.
-category: productivity
+description: Read and write text files in SharePoint document libraries through Microsoft Graph.
+category: integrations
 icon:
   lucide: files
 availability: general

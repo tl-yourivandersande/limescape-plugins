@@ -31,29 +31,32 @@ async def execute(ctx: NodeContext, inp: NodeInput):
         if not isinstance(token, str) or not token.strip():
             raise NodeInputError("Selected credential has no usable Microsoft Graph access token")
         action = _p(inp, "action", "list_tasks")
-        list_id = _p(inp, "task_list_id")
-        root = f"{GRAPH}/me/todo/lists/{_seg(list_id, 'task_list_id')}"
-        task_id = _p(inp, "task_id")
-        method, url, body = "GET", "", None
-        if action == "list_tasks":
-            url = root + "/tasks"
-        elif action == "get_task":
-            url = f"{root}/tasks/{_seg(task_id, 'task_id')}"
-        elif action == "create_task":
-            body = _p(inp, "task")
-            if not isinstance(body, dict) or not isinstance(body.get("title"), str) or not body["title"].strip():
-                raise NodeInputError("task must be a JSON object with a non-empty title")
-            url, method = root + "/tasks", "POST"
-        elif action == "update_task":
-            body = _p(inp, "task")
-            if not isinstance(body, dict) or not body:
-                raise NodeInputError("task must be a non-empty JSON object")
-            allowed = {"title", "body", "dueDateTime", "status", "importance", "reminderDateTime", "categories"}
-            if set(body) - allowed:
-                raise NodeInputError("task contains unsupported writable properties")
-            url, method = f"{root}/tasks/{_seg(task_id, 'task_id')}", "PATCH"
+        if action == "list_task_lists":
+            method, url, body = "GET", f"{GRAPH}/me/todo/lists", None
         else:
-            raise NodeInputError("Unsupported Microsoft To Do action")
+            list_id = _seg(_p(inp, "task_list_id"), "task_list_id")
+            root = f"{GRAPH}/me/todo/lists/{list_id}"
+            task_id = _p(inp, "task_id")
+            method, url, body = "GET", "", None
+            if action == "list_tasks":
+                url = root + "/tasks"
+            elif action == "get_task":
+                url = f"{root}/tasks/{_seg(task_id, 'task_id')}"
+            elif action == "create_task":
+                body = _p(inp, "task")
+                if not isinstance(body, dict) or not isinstance(body.get("title"), str) or not body["title"].strip():
+                    raise NodeInputError("task must be a JSON object with a non-empty title")
+                url, method = root + "/tasks", "POST"
+            elif action == "update_task":
+                body = _p(inp, "task")
+                if not isinstance(body, dict) or not body:
+                    raise NodeInputError("task must be a non-empty JSON object")
+                allowed = {"title", "body", "dueDateTime", "status", "importance", "reminderDateTime", "categories"}
+                if set(body) - allowed:
+                    raise NodeInputError("task contains unsupported writable properties")
+                url, method = f"{root}/tasks/{_seg(task_id, 'task_id')}", "PATCH"
+            else:
+                raise NodeInputError("Unsupported Microsoft To Do action")
         response = await ctx.http.request(method, url, headers={"Authorization": f"Bearer {token}"}, json=body, timeout=30)
         if not 200 <= response.status < 300:
             raise NodeInputError(f"Microsoft Graph returned HTTP {response.status}; check permissions and inputs")

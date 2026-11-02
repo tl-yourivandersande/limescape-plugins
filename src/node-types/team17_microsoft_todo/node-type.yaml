@@ -1,8 +1,8 @@
 schema_version: 1
 code: team17_microsoft_todo
 name: Microsoft To Do
- description: Read and write task lists and tasks using Microsoft Graph.
-category: productivity
+description: Read and write task lists and tasks using Microsoft Graph.
+category: integrations
 icon:
   lucide: list-todo
 availability: general
@@ -23,8 +23,8 @@ form:
   fields:
     - {name: credential_mode, type: select, label: Credential mode, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}]}
     - {name: credential_code, type: text, label: Studio Microsoft credential code, required: 1, max_length: 200, resolve_variables: false}
-    - {name: action, type: select, label: Action, required: 1, default: list_tasks, choices: [{name: List tasks, value: list_tasks}, {name: Get task, value: get_task}, {name: Create task, value: create_task}, {name: Update task, value: update_task}]}
-    - {name: task_list_id, type: text, label: Task list ID, required: 1, max_length: 500}
+    - {name: action, type: select, label: Action, required: 1, default: list_tasks, choices: [{name: List task lists, value: list_task_lists}, {name: List tasks, value: list_tasks}, {name: Get task, value: get_task}, {name: Create task, value: create_task}, {name: Update task, value: update_task}]}
+    - {name: task_list_id, type: text, label: Task list ID, required: 0, max_length: 500}
     - {name: task_id, type: text, label: Task ID, required: 0, max_length: 500}
     - {name: task, type: json, label: Task properties JSON, required: 0, default: '{}'}
     - {name: input_keys, type: text, label: Input keys, required: 0, default: ''}
