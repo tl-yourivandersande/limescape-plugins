@@ -1,4 +1,4 @@
-# Microsoft Graph: Lists, document libraries and To Do
+# Microsoft Graph: SharePoint and To Do
 
 **Status:** initial plugin implementation on this branch, using the user-provided assumption that Studio resolves Microsoft OAuth credentials and refreshes tokens, returning a current Microsoft Graph access token at run time. Each node has explicit credential type/token-field placeholders. This is not ready for activation until those names are mapped and verified against Studio.
 
@@ -6,11 +6,10 @@
 
 | Node | Current operations | Known first-version limits |
 |---|---|---|
-| `team17_sharepoint_list` | List items, get one item, create item, update item fields by item ID | One response page; no delete, upsert, ETag handling or conditional writes |
-| `team17_sharepoint_file` | List root children, get metadata, download UTF-8 text, upload UTF-8 text (1 MB cap) | No binary transfer, paging, delete, folder creation or ETag conflict handling |
+| `team17_sharepoint` | Sites: search, get by URL, list lists, list document libraries. Lists: list/get/create/update/delete items. Libraries: list files (root or folder), search, get metadata, download/upload UTF-8 text (1 MB cap), create folder, delete file or folder | Bounded paging (max 1000 results, 10 pages); no binary transfer, upsert, ETag handling or conditional writes |
 | `team17_microsoft_todo` | List task lists, list/get/create/update tasks | No delete or paging |
 
-Inputs use site/list/drive/task IDs and JSON object fields; results are returned under the node output key. Writes do not retry automatically. Node codes and manifests still need reserved-code/catalog validation in CI.
+Inputs use site/list/drive/task IDs (the SharePoint node can look them up from a site URL) and JSON object fields; results are returned under the node output key. Writes do not retry automatically. Node codes and manifests still need reserved-code/catalog validation in CI.
 
 ## Authentication contract (assumed Studio responsibility)
 
@@ -24,7 +23,7 @@ Nodes currently expose selected team and selected personal credential-code modes
 
 The initial design uses delegated access. Studio/tenant administrators configure consent and permissions. Candidate scopes to verify against current Microsoft Graph endpoint documentation:
 
-- Lists read: `Sites.Read.All`; create/update: `Sites.ReadWrite.All`, subject to narrower endpoint options.
+- Lists and site lookup read: `Sites.Read.All`; create/update/delete: `Sites.ReadWrite.All`, subject to narrower endpoint options.
 - Libraries: `Files.Read` / `Files.ReadWrite` for the signed-in user's files, or appropriate `Sites.*` permission for site drives.
 - To Do: delegated `Tasks.Read` / `Tasks.ReadWrite`; no app-only fallback.
 
@@ -32,13 +31,15 @@ The exact endpoint permission matrix and least-privilege option must be verified
 
 ## Node behavior and safety
 
-### Lists
+### SharePoint
 
-Requests use validated site, list and item path segments and fixed `graph.microsoft.com/v1.0` endpoints. Create/update requires a non-empty JSON object. Upsert is omitted because it is not an atomic Graph primitive. Update uses PATCH on `/fields`; ETag/If-Match conflict controls are not implemented yet.
+One node covers sites, Lists and document libraries; the form only shows the fields the selected action uses (`depends_on.visible_when`). Requests use validated site, list, drive and item path segments and fixed `graph.microsoft.com/v1.0` endpoints. List actions follow `@odata.nextLink` only back to the Graph host, up to the configured maximum.
 
-### Document libraries
+Lists: create/update requires a non-empty JSON object. Upsert is omitted because it is not an atomic Graph primitive. Update uses PATCH on `/fields`; ETag/If-Match conflict controls are not implemented yet.
 
-The initial implementation only handles UTF-8 text. Upload uses a drive root path and PUT content endpoint, with a 1 MB input cap. Binary file transfer, overwrite conflict policy, pagination and ETag control need follow-up before broader production use.
+Document libraries: only UTF-8 text, capped at 1 MB for upload and download. Upload uses a path and the PUT content endpoint and replaces an existing file at that path. Folder creation fails on a name conflict. Binary file transfer and ETag control need follow-up before broader production use.
+
+Delete actions remove one list item or drive item by ID; SharePoint moves it to the site recycle bin.
 
 ### To Do
 
@@ -48,7 +49,7 @@ Endpoints are delegated `/me/todo` endpoints. Create requires a title; update on
 
 - `capabilities: [credentials, http]`; fixed Graph origin; bounded request timeouts.
 - No arbitrary URLs, custom auth headers or user-controlled hosts.
-- Safe status-only Graph errors; no provider response body or token in output.
+- Safe Graph errors: HTTP status plus Graph's error code only; no provider response body, message or token in output.
 - Never retry writes automatically. Respect caller permissions; do not silently switch credential owner/mode.
 - Unit tests use synthetic tokens/data only. They do not prove Studio's token refresh, credential scoping or tenant consent; run a development-tenant smoke test.
 
