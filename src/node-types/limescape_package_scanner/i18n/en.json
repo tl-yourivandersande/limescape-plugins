@@ -1,0 +1,19 @@
+{
+  "name": "Octopus package scanner",
+  "description": "Scans Octopus Web and Core package versions and OSV advisories.",
+  "fields": {
+    "auth_mode": {"label": "Authentication"},
+    "credential_selection": {"label": "Credential selection"},
+    "credential_code": {"label": "Credential code"},
+    "credential_type": {"label": "Credential type"},
+    "organization": {"label": "Azure DevOps organization"},
+    "project": {"label": "Project"},
+    "web_repository": {"label": "Web repository"},
+    "core_repository": {"label": "Core repository"},
+    "min_major": {"label": "Lowest release major"},
+    "release_lines": {"label": "Release lines"},
+    "onderdelen": {"label": "Scan scope"},
+    "markdown": {"label": "Include Markdown reports"},
+    "output_key": {"label": "Output key"}
+  }
+}

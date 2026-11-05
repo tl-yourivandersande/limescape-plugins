@@ -1,0 +1,41 @@
+schema_version: 1
+code: limescape_package_scanner
+name: Octopus package scanner
+ description: Scan Octopus Web and Core dependencies, package versions, and OSV advisories.
+category: integrations
+icon:
+  svg: icon.svg
+availability: general
+stage: beta
+runtime:
+  execution_mode: stream
+  trace: decorator
+  manages_output_keys: false
+  isolation: shared
+  timeout_seconds: 300
+capabilities: [credentials, http]
+dependencies: []
+io:
+  input_data: {}
+  output_data:
+    result: Package scan report
+form:
+  fields:
+    - {name: auth_mode, type: select, label: Authentication, required: 1, default: pat, choices: [{name: Azure DevOps PAT, value: pat}, {name: Azure DevOps OAuth2, value: oauth2}]}
+    - {name: credential_selection, type: select, label: Credential selection, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}, {name: Personal credential type, value: personal_type}]}
+    - {name: credential_code, type: text, label: Credential code, required: 0, max_length: 200}
+    - {name: credential_type, type: text, label: Credential type name, required: 0, max_length: 200}
+    - {name: organization, type: text, label: Azure DevOps organization, required: 1, default: truelime, max_length: 200}
+    - {name: project, type: text, label: Project, required: 1, default: Octopus, max_length: 200}
+    - {name: web_repository, type: text, label: Web repository, required: 1, default: Octopus Web, max_length: 200}
+    - {name: core_repository, type: text, label: Core repository, required: 1, default: Octopus Core, max_length: 200}
+    - {name: min_major, type: integer, label: Lowest release major, required: 0, default: 8}
+    - {name: release_lines, type: text, label: Release lines (comma-separated; blank means all), required: 0, max_length: 1000}
+    - {name: onderdelen, type: select, label: Scan scope, required: 0, default: alles, choices: [{name: Everything, value: alles}, {name: Components, value: componenten}, {name: Vulnerabilities, value: kwetsbaarheden}]}
+    - {name: markdown, type: boolean, label: Include Markdown reports, required: 0, default: false}
+    - {name: output_key, type: text, label: Output key, required: 0, default: result}
+  layout:
+    - id: tab-settings
+      sections:
+        - id: section-main
+          fields: [auth_mode, credential_selection, credential_code, credential_type, organization, project, web_repository, core_repository, min_major, release_lines, onderdelen, markdown, output_key]
