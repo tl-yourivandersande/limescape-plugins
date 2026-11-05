@@ -1,10 +1,10 @@
 schema_version: 1
-code: team17_microsoft_todo
+code: limescape_microsoft_todo
 name: Microsoft To Do
 description: Read and write task lists and tasks using Microsoft Graph.
 category: integrations
 icon:
-  lucide: list-todo
+  svg: icon.svg
 availability: general
 stage: stable
 runtime:
