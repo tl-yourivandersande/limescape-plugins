@@ -1,5 +1,5 @@
 schema_version: 1
-code: team17_sharepoint
+code: limescape_sharepoint
 name: SharePoint
 description: Find SharePoint sites and read or write list items and document library files through Microsoft Graph.
 category: integrations

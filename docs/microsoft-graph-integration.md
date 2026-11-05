@@ -6,8 +6,8 @@
 
 | Node | Current operations | Known first-version limits |
 |---|---|---|
-| `team17_sharepoint` | Sites: search, get by URL, list lists, list document libraries. Lists: list/get/create/update/delete items. Libraries: list files (root or folder), search, get metadata, download/upload UTF-8 text (1 MB cap), create folder, delete file or folder | Bounded paging (max 1000 results, 10 pages); no binary transfer, upsert, ETag handling or conditional writes |
-| `team17_microsoft_todo` | List task lists, list/get/create/update tasks | No delete or paging |
+| `limescape_sharepoint` | Sites: search, get by URL, list lists, list document libraries. Lists: list/get/create/update/delete items. Libraries: list files (root or folder), search, get metadata, download/upload UTF-8 text (1 MB cap), create folder, delete file or folder | Bounded paging (max 1000 results, 10 pages); no binary transfer, upsert, ETag handling or conditional writes |
+| `limescape_microsoft_todo` | List task lists, list/get/create/update tasks | No delete or paging |
 
 Inputs use site/list/drive/task IDs (the SharePoint node can look them up from a site URL) and JSON object fields; results are returned under the node output key. Writes do not retry automatically. Node codes and manifests still need reserved-code/catalog validation in CI.
 
