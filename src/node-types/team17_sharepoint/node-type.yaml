@@ -1,0 +1,121 @@
+schema_version: 1
+code: team17_sharepoint
+name: SharePoint
+description: Find SharePoint sites and read or write list items and document library files through Microsoft Graph.
+category: integrations
+icon:
+  svg: icon.svg
+availability: general
+stage: stable
+runtime:
+  execution_mode: stream
+  trace: decorator
+  manages_output_keys: false
+  isolation: shared
+  timeout_seconds: 120
+capabilities: [credentials, http]
+dependencies: []
+io:
+  input_data: {}
+  output_data:
+    result: Microsoft Graph result or a safe error
+form:
+  fields:
+    - {name: credential_mode, type: select, label: Credential mode, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}]}
+    - {name: credential_code, type: text, label: Studio Microsoft credential code, required: 1, max_length: 200, resolve_variables: false}
+    - name: action
+      type: select
+      label: Action
+      required: 1
+      default: list_items
+      choices:
+        - {name: Search sites, value: search_sites}
+        - {name: Get site by URL, value: get_site}
+        - {name: List lists, value: list_lists}
+        - {name: List items, value: list_items}
+        - {name: Get list item, value: get_item}
+        - {name: Create list item, value: create_item}
+        - {name: Update list item, value: update_item}
+        - {name: Delete list item, value: delete_item}
+        - {name: List document libraries, value: list_drives}
+        - {name: List files, value: list_files}
+        - {name: Search files, value: search_files}
+        - {name: Get file metadata, value: get_file}
+        - {name: Download text file, value: download_text}
+        - {name: Upload text file, value: upload_text}
+        - {name: Create folder, value: create_folder}
+        - {name: Delete file or folder, value: delete_file}
+    # Fields below are only shown for the actions that use them; node.py validates them.
+    - name: query
+      type: text
+      label: Search text
+      required: 0
+      max_length: 500
+      depends_on: {visible_when: {field_name: action, field_value: [search_sites, search_files]}}
+    - name: site_url
+      type: text
+      label: Site URL
+      required: 0
+      max_length: 1000
+      depends_on: {visible_when: {field_name: action, field_value: [get_site]}}
+    - name: site_id
+      type: text
+      label: Site ID
+      required: 0
+      max_length: 500
+      depends_on:
+        visible_when:
+          field_name: action
+          field_value: [list_lists, list_items, get_item, create_item, update_item, delete_item, list_drives, list_files, search_files, get_file, download_text, upload_text, create_folder, delete_file]
+    - name: list_id
+      type: text
+      label: List ID
+      required: 0
+      max_length: 500
+      depends_on: {visible_when: {field_name: action, field_value: [list_items, get_item, create_item, update_item, delete_item]}}
+    - name: drive_id
+      type: text
+      label: Document library (drive) ID
+      required: 0
+      max_length: 500
+      depends_on:
+        visible_when:
+          field_name: action
+          field_value: [list_files, search_files, get_file, download_text, upload_text, create_folder, delete_file]
+    - name: item_id
+      type: text
+      label: Item ID
+      required: 0
+      max_length: 500
+      depends_on: {visible_when: {field_name: action, field_value: [get_item, update_item, delete_item, get_file, download_text, delete_file]}}
+    - name: path
+      type: text
+      label: Path
+      required: 0
+      max_length: 1000
+      depends_on: {visible_when: {field_name: action, field_value: [list_files, upload_text, create_folder]}}
+    - name: content
+      type: textarea
+      label: UTF-8 text content
+      required: 0
+      max_length: 1000000
+      depends_on: {visible_when: {field_name: action, field_value: [upload_text]}}
+    - name: fields
+      type: json
+      label: List item fields JSON
+      required: 0
+      default: '{}'
+      depends_on: {visible_when: {field_name: action, field_value: [create_item, update_item]}}
+    - name: max_items
+      type: integer
+      label: Maximum results
+      required: 0
+      default: 100
+      depends_on: {visible_when: {field_name: action, field_value: [search_sites, list_lists, list_items, list_drives, list_files, search_files]}}
+    - {name: input_keys, type: text, label: Input keys, required: 0, default: ''}
+    - {name: output_key, type: text, label: Output key, required: 0, default: result}
+  layout:
+    - id: tab-settings
+      sections:
+        - id: section-properties
+          fields: [credential_mode, credential_code, action, query, site_url, site_id, list_id, drive_id, item_id, path, content, fields, max_items, input_keys, output_key]
