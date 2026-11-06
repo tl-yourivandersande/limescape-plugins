@@ -19,14 +19,18 @@ jobs:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v7
       - run: uv sync
+      - name: Lock dependencies and download wheels
+        run: uv run bash scripts/lock_dependencies.sh build
       - name: Build and publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          uv run limescape-plugin build --version "$version" --git-sha "$GITHUB_SHA" --out dist > build.txt
+          uv run limescape-plugin build --version "$version" --git-sha "$GITHUB_SHA" \
+            --lock build/bundle.lock --wheels build/wheels --out dist > build.txt
           cat build.txt
           activation="$(sed -n 's/^activation_sha256=//p' build.txt)"
           test -n "$activation"
+          tar tzf "dist/limescape-plugins-${version}-runtime.tar.gz" | grep -qx "limescape-plugins-${version}/bundle.lock"
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS --title "$GITHUB_REF_NAME" \
             --notes "Activation sha256: \`$activation\`" --generate-notes

@@ -285,11 +285,14 @@ async def test_azure_default_branch_is_its_own_line():
     assert releases[0]["packages"] == {"nuget": {"NLog": {"c": "4.7.0"}}}
     assert not any(c["url"].endswith("/commits/wrong") for c in http_calls(ctx))
 
-    ctx = context(handler=handler)
-    result = await run(ctx, **scan_params(onderdelen="componenten", latest_packages="NLog",
-                                          include_default_branch=False))
-    assert [r["release_lijn"] for r in result[0]["result"]["releases"]] == ["9.2"]
-    assert not any(c["url"] in (DEVOPS + "w", DEVOPS + "c") for c in http_calls(ctx))
+    # The platform's checkbox stores "1" when checked and "" when unchecked.
+    for value, lines in ((False, ["9.2"]), ("", ["9.2"]), ("0", ["9.2"]), ("1", ["main", "9.2"])):
+        ctx = context(handler=handler)
+        result = await run(ctx, **scan_params(onderdelen="componenten", latest_packages="NLog",
+                                              include_default_branch=value))
+        assert [r["release_lijn"] for r in result[0]["result"]["releases"]] == lines
+        if lines == ["9.2"]:
+            assert not any(c["url"] in (DEVOPS + "w", DEVOPS + "c") for c in http_calls(ctx))
 
 
 async def test_custom_path_exclusion_skips_project_files():

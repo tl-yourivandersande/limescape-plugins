@@ -37,7 +37,7 @@ form:
       label: Package types (blank means all)
       required: 0
       choices: [{name: NuGet (.NET), value: nuget}, {name: npm (JavaScript/TypeScript), value: npm}, {name: PyPI (Python), value: pypi}, {name: Go, value: go}, {name: Maven (Java), value: maven}, {name: Composer (PHP), value: composer}, {name: RubyGems (Ruby), value: rubygems}, {name: Cargo (Rust), value: cargo}]
-    - {name: include_default_branch, type: boolean, label: Also scan the default branch, required: 0, default: true}
+    - {name: include_default_branch, type: checkbox, label: Also scan the default branch, required: 0, default: true}
     - {name: min_major, type: integer, label: Lowest release major, required: 0, default: 0}
     - {name: max_major, type: integer, label: Highest release major (blank means no limit), required: 0}
     - {name: release_lines, type: text, label: Release lines (comma-separated; blank means all), required: 0, max_length: 1000}
@@ -45,7 +45,7 @@ form:
     - {name: exclude_packages, type: text, label: Excluded packages (comma-separated), required: 0, default: '', max_length: 2000}
     - {name: latest_packages, type: text, label: Packages to check for the newest version (blank means all direct dependencies; e.g. pypi:requests), required: 0, default: '', max_length: 2000}
     - {name: onderdelen, type: select, label: Scan scope, required: 0, default: alles, choices: [{name: Everything, value: alles}, {name: Packages and newest versions, value: componenten}, {name: Vulnerabilities, value: kwetsbaarheden}]}
-    - {name: markdown, type: boolean, label: Include Markdown reports, required: 0, default: false}
+    - {name: markdown, type: checkbox, label: Include Markdown reports, required: 0, default: false}
     - {name: output_key, type: text, label: Output key, required: 0, default: result}
   layout:
     - id: tab-settings
