@@ -1,7 +1,7 @@
 schema_version: 1
 code: limescape_package_scanner
-name: Octopus package scanner
-description: Scan Octopus Web and Core dependencies, package versions, and OSV advisories.
+name: Package scanner
+description: Scan dependency versions per release line in Azure DevOps or GitHub repositories (NuGet, npm, PyPI, Go, Maven, Composer, RubyGems, Cargo), the newest versions and OSV advisories.
 category: integrations
 icon:
   svg: icon.svg
@@ -12,30 +12,43 @@ runtime:
   trace: decorator
   manages_output_keys: false
   isolation: shared
-  timeout_seconds: 300
+  timeout_seconds: 600
 capabilities: [credentials, http]
 dependencies: []
 io:
   input_data: {}
   output_data:
-    result: Package scan report
+    result: Package scan report or a safe error
 form:
   fields:
-    - {name: auth_mode, type: select, label: Authentication, required: 1, default: pat, choices: [{name: Azure DevOps PAT, value: pat}, {name: Azure DevOps OAuth2, value: oauth2}]}
-    - {name: credential_selection, type: select, label: Credential selection, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}, {name: Personal credential type, value: personal_type}]}
-    - {name: credential_code, type: text, label: Credential code, required: 0, max_length: 200}
-    - {name: credential_type, type: text, label: Credential type name, required: 0, max_length: 200}
-    - {name: organization, type: text, label: Azure DevOps organization, required: 1, default: truelime, max_length: 200}
-    - {name: project, type: text, label: Project, required: 1, default: Octopus, max_length: 200}
-    - {name: web_repository, type: text, label: Web repository, required: 1, default: Octopus Web, max_length: 200}
-    - {name: core_repository, type: text, label: Core repository, required: 1, default: Octopus Core, max_length: 200}
-    - {name: min_major, type: integer, label: Lowest release major, required: 0, default: 8}
+    - {name: provider, type: select, label: Git source, required: 1, default: azure_devops, choices: [{name: Azure DevOps, value: azure_devops}, {name: GitHub, value: github}]}
+    - {name: credential_code, type: text, label: Team credential with the personal access token (type Secret), required: 1, max_length: 200, resolve_variables: false}
+    - {name: organization, type: text, label: Organization or owner, required: 1, max_length: 200}
+    - name: project
+      type: text
+      label: Azure DevOps project
+      required: 0
+      max_length: 200
+      depends_on: {visible_when: {field_name: provider, field_value: [azure_devops]}}
+    - {name: repositories, type: text, label: Repositories (comma-separated; on GitHub also owner/name), required: 1, max_length: 1000}
+    - name: ecosystems
+      type: select
+      multi_select: 1
+      label: Package types (blank means all)
+      required: 0
+      choices: [{name: NuGet (.NET), value: nuget}, {name: npm (JavaScript/TypeScript), value: npm}, {name: PyPI (Python), value: pypi}, {name: Go, value: go}, {name: Maven (Java), value: maven}, {name: Composer (PHP), value: composer}, {name: RubyGems (Ruby), value: rubygems}, {name: Cargo (Rust), value: cargo}]
+    - {name: include_default_branch, type: boolean, label: Also scan the default branch, required: 0, default: true}
+    - {name: min_major, type: integer, label: Lowest release major, required: 0, default: 0}
+    - {name: max_major, type: integer, label: Highest release major (blank means no limit), required: 0}
     - {name: release_lines, type: text, label: Release lines (comma-separated; blank means all), required: 0, max_length: 1000}
-    - {name: onderdelen, type: select, label: Scan scope, required: 0, default: alles, choices: [{name: Everything, value: alles}, {name: Components, value: componenten}, {name: Vulnerabilities, value: kwetsbaarheden}]}
+    - {name: exclude_paths, type: text, label: Excluded path fragments (comma-separated), required: 0, default: 'sandbox, loadtest, .test/, .tests/, .test., .tests., /testing/', max_length: 1000}
+    - {name: exclude_packages, type: text, label: Excluded packages (comma-separated), required: 0, default: '', max_length: 2000}
+    - {name: latest_packages, type: text, label: Packages to check for the newest version (blank means all direct dependencies; e.g. pypi:requests), required: 0, default: '', max_length: 2000}
+    - {name: onderdelen, type: select, label: Scan scope, required: 0, default: alles, choices: [{name: Everything, value: alles}, {name: Packages and newest versions, value: componenten}, {name: Vulnerabilities, value: kwetsbaarheden}]}
     - {name: markdown, type: boolean, label: Include Markdown reports, required: 0, default: false}
     - {name: output_key, type: text, label: Output key, required: 0, default: result}
   layout:
     - id: tab-settings
       sections:
         - id: section-main
-          fields: [auth_mode, credential_selection, credential_code, credential_type, organization, project, web_repository, core_repository, min_major, release_lines, onderdelen, markdown, output_key]
+          fields: [provider, credential_code, organization, project, repositories, ecosystems, include_default_branch, min_major, max_major, release_lines, exclude_paths, exclude_packages, latest_packages, onderdelen, markdown, output_key]
