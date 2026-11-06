@@ -1,0 +1,22 @@
+{
+  "name": "Package scanner",
+  "description": "Scans dependency versions per release line in Azure DevOps or GitHub repositories (NuGet, npm, PyPI, Go, Maven, Composer, RubyGems, Cargo), the newest versions and OSV advisories.",
+  "fields": {
+    "provider": {"label": "Git source"},
+    "credential_code": {"label": "Team credential with the personal access token (type Secret)"},
+    "organization": {"label": "Organization or owner"},
+    "project": {"label": "Azure DevOps project"},
+    "repositories": {"label": "Repositories (comma-separated; on GitHub also owner/name)"},
+    "ecosystems": {"label": "Package types (blank means all)"},
+    "include_default_branch": {"label": "Also scan the default branch"},
+    "min_major": {"label": "Lowest release major"},
+    "max_major": {"label": "Highest release major (blank means no limit)"},
+    "release_lines": {"label": "Release lines"},
+    "exclude_paths": {"label": "Excluded path fragments"},
+    "exclude_packages": {"label": "Excluded packages"},
+    "latest_packages": {"label": "Packages to check for the newest version (blank means all direct dependencies)"},
+    "onderdelen": {"label": "Scan scope"},
+    "markdown": {"label": "Include Markdown reports"},
+    "output_key": {"label": "Output key"}
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Packagescanner",
+  "description": "Scant dependency-versies per releaselijn in Azure DevOps- of GitHub-repositories (NuGet, npm, PyPI, Go, Maven, Composer, RubyGems, Cargo), de nieuwste versies en OSV-advisories.",
+  "fields": {
+    "provider": {"label": "Git-bron"},
+    "credential_code": {"label": "Teamcredential met het personal access token (type Secret)"},
+    "organization": {"label": "Organisatie of eigenaar"},
+    "project": {"label": "Azure DevOps-project"},
+    "repositories": {"label": "Repositories (kommagescheiden; op GitHub ook eigenaar/naam)"},
+    "ecosystems": {"label": "Package-soorten (leeg is alle)"},
+    "include_default_branch": {"label": "Ook de standaardbranch scannen"},
+    "min_major": {"label": "Laagste release-majorversie"},
+    "max_major": {"label": "Hoogste release-majorversie (leeg is geen grens)"},
+    "release_lines": {"label": "Releaselijnen"},
+    "exclude_paths": {"label": "Uitgesloten paddelen"},
+    "exclude_packages": {"label": "Uitgesloten packages"},
+    "latest_packages": {"label": "Packages voor nieuwste versie (leeg is alle directe dependencies)"},
+    "onderdelen": {"label": "Scandelen"},
+    "markdown": {"label": "Markdownrapporten opnemen"},
+    "output_key": {"label": "Uitvoersleutel"}
+  }
+}
