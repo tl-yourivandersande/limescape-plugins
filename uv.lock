@@ -245,16 +245,16 @@ wheels = [
 
 [[package]]
 name = "limescape-plugin-sdk"
-version = "0.2.2"
+version = "1.64.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/60/10/5d62343085ea3a6b9a46dd6862392cf2aafdb2ba4fae88caa7c5e5ce7176/limescape_plugin_sdk-0.2.2.tar.gz", hash = "sha256:812490841a588c23f996f8470532e0679f643ab276b292c9736f673d3bbc5412", size = 42585, upload-time = "2026-09-27T17:14:45.929Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/b6/d47c9742c703ecd37e28f0349cb20b5e1df7f07f03b78c71dc7bb8d7c853/limescape_plugin_sdk-1.64.7.tar.gz", hash = "sha256:5da28000157604d8909364b94021a66b9c654aa3efa0db486d8ac6d963e276c1", size = 46936, upload-time = "2026-11-09T12:07:24.705Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/df/e6d1105675586c1321ba8335386835d9f5f86016fdb76296df2bb46fe0c0/limescape_plugin_sdk-0.2.2-py3-none-any.whl", hash = "sha256:c2c990333e848f1028e9f99a8813989e004819e02dc5f70633ecf83919474a86", size = 43636, upload-time = "2026-09-27T17:14:44.706Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/ff/2eb7f3078ef716759f0829bbdb0dfd8fc809b909f637437642738e6146eb/limescape_plugin_sdk-1.64.7-py3-none-any.whl", hash = "sha256:0e7a3b1d2a3f3b6cfa15acd60360f81ffd6f38b46c89425288fca751e0f41e52", size = 47959, upload-time = "2026-11-09T12:07:23.521Z" },
 ]
 
 [[package]]
@@ -279,7 +279,7 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "bandit", specifier = ">=1.7" },
-    { name = "limescape-plugin-sdk", specifier = "==0.2.2" },
+    { name = "limescape-plugin-sdk", specifier = "==1.64.7" },
     { name = "mypy", specifier = ">=1.10" },
     { name = "pip-audit", specifier = ">=2.7" },
     { name = "pip-licenses", specifier = ">=5.0" },
