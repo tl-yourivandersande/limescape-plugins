@@ -7,7 +7,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "limescape-plugin-sdk==0.2.2",
+    "limescape-plugin-sdk==1.64.7",
     "pytest>=8.3",
     "pytest-asyncio>=1.3",
     "ruff>=0.6",
