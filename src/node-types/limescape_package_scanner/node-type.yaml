@@ -22,7 +22,24 @@ io:
 form:
   fields:
     - {name: provider, type: select, label: Git source, required: 1, default: azure_devops, choices: [{name: Azure DevOps, value: azure_devops}, {name: GitHub, value: github}]}
-    - {name: credential_code, type: text, label: Team credential with the personal access token (type Secret), required: 1, max_length: 200, resolve_variables: false}
+    - name: credential_code
+      type: select
+      label: 'Credential (Secret with a personal access token, or GitHub)'
+      required: 1
+      default: ''
+      resolve_variables: false
+      choices: []
+      lookup:
+        app_label: credentials
+        model_name: Credential
+        # Also the editor's own personal credentials, and an "@user:githubOAuth2Api" choice for the GitHub
+        # credential of whoever starts the flow. A Secret is team-only, so it gets no such choice.
+        include_personal: true
+        include_user_credential_types: true
+        filter_operator: and
+        filter: {team: current_team_id, is_active: true, user__isnull: true, credential_type__name__in: [genericSecret, githubOAuth2Api]}
+        field_value: code
+        field_display: name
     - {name: organization, type: text, label: Organization or owner, required: 1, max_length: 200}
     - name: project
       type: text

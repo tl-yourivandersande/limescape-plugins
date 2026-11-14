@@ -1,6 +1,6 @@
 # Microsoft Graph: SharePoint and To Do
 
-**Status:** initial plugin implementation on this branch, using the user-provided assumption that Studio resolves Microsoft OAuth credentials and refreshes tokens, returning a current Microsoft Graph access token at run time. Each node has explicit credential type/token-field placeholders. This is not ready for activation until those names are mapped and verified against Studio.
+**Status:** initial plugin implementation. Both nodes use the platform's Microsoft 365 (OAuth2) credential type `microsoft365OAuth2Api` with `oauth2=True`, and the platform refreshes the Graph token. This needs a platform version whose plugin credential capability supports every OAuth2 type, and a Studio smoke test before activation.
 
 ## Implemented nodes and current scope
 
@@ -11,13 +11,13 @@
 
 Inputs use site/list/drive/task IDs (the SharePoint node can look them up from a site URL) and JSON object fields; results are returned under the node output key. Writes do not retry automatically. Node codes and manifests still need reserved-code/catalog validation in CI.
 
-## Authentication contract (assumed Studio responsibility)
+## Authentication contract
 
-Assume Studio's configured Microsoft OAuth credential resolves at run time to a **currently valid access token for Microsoft Graph**, with consent, refresh-token rotation, secure persistence and revocation handled by Studio/platform. Nodes resolve a selected credential and send its access token as a Bearer token to the fixed Graph v1.0 host. They do not implement OAuth consent or refresh and must never receive/store refresh tokens or client secrets.
+Each node defines `CREDENTIAL_TYPE = "microsoft365OAuth2Api"` and `TOKEN_FIELD = "accessToken"` and calls `ctx.credentials.resolve(reference, mode=..., expected_type=CREDENTIAL_TYPE, oauth2=True)`. The platform resolves the credential to a **currently valid access token for Microsoft Graph**: it refreshes the token at the tenant's Microsoft endpoint, stores the rotated refresh token and returns `accessToken` plus the credential's plain fields (such as `tenantId`), never the refresh token or client secret. Nodes send the access token as a Bearer token to the fixed Graph v1.0 host and implement no OAuth consent or refresh themselves.
 
-Each node defines `CREDENTIAL_TYPE` and `TOKEN_FIELD` as `REPLACE_WITH_STUDIO_...` constants. Replace them with the exact Studio credential type and token property before use. Credential reference/mode and token must never be exposed in outputs/logs/traces. A development Studio smoke test must confirm that successive runs receive valid tokens and that revoked credentials fail safely. If the assumed Studio contract is unavailable, pause rather than adding OAuth logic to the plugin without authorization.
+The `microsoft365OAuth2Api` type uses the customer's own Entra app registration (client id, secret and tenant on the credential). Its default scope covers mail, calendar and contacts, so set the credential's scope to the Graph permissions below. Credential reference/mode and token must never be exposed in outputs/logs/traces. A development Studio smoke test must confirm that successive runs receive valid tokens and that revoked credentials fail safely.
 
-Nodes currently expose selected team and selected personal credential-code modes. Personal credentials are explicitly shared through the flow when selected; use only where authorized. No caller-specific credential-type mode is included until its exact Studio resolver/identity behavior is confirmed.
+The credential is chosen in a dropdown (`lookup` on `credentials.Credential`, like the built-in nodes) with three kinds of choices. `[Team]` is a team credential (`mode="team"`). `[Persoonlijk]` is the editor's own credential, shared with everyone who runs the flow (`mode="personal"`), so use it only where that is authorized. `[Aanroeper]` is stored as `@user:microsoft365OAuth2Api` and resolves to the credential of whoever starts the flow (`mode="personal_type"`). The platform establishes that person from the trusted run context, never from flow input. For a code the node tries `team` first and then `personal`. The older `credential_mode` field is deprecated, kept for compatibility and no longer shown.
 
 ## Microsoft Entra permissions
 
@@ -55,7 +55,7 @@ Endpoints are delegated `/me/todo` endpoints. Create requires a title; update on
 
 ## Delivery checklist
 
-1. Map each placeholder to the exact Studio Microsoft credential type/value contract. Verify credential-mode availability and token behavior; no new platform OAuth work is assumed.
+1. Deploy a platform version whose plugin credential capability refreshes every OAuth2 type (`microsoft365OAuth2Api` included). Verify credential-mode availability and token behavior.
 2. Confirm Entra tenant/app registration and delegated permissions for target Graph endpoints.
 3. Complete manifest/code CI and a Studio smoke test for read and write operations.
 4. Review and merge/release/activate the bundle; administrators handle Studio consent/configuration and Limescape activation.

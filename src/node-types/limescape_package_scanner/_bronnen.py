@@ -14,7 +14,7 @@ import asyncio
 import base64
 import re
 
-from limescape_plugin_sdk import NodeContext, NodeInputError
+from limescape_plugin_sdk import CapabilityError, NodeContext, NodeInputError
 
 from ._gedeeld import json_van, seg
 
@@ -27,18 +27,80 @@ GIT_FLOW = ("develop", "release/", "hotfix/")
 USER_AGENT = "limescape-package-scanner"
 LINK_NEXT = re.compile(r'<([^>]+)>\s*;\s*rel="next"')
 
-# The personal access token is a team credential of the platform's generic "Secret" type. Plugin OAuth (SDK 0.2.2)
-# only supports googleTagManagerOAuth2Api, so the GitHub and Azure DevOps OAuth credential types cannot be used yet.
-CREDENTIAL_TYPE = "genericSecret"
-CREDENTIAL_FIELD = "secret"
+# A personal access token is a team credential of the platform's generic "Secret" type. GitHub can also use the
+# platform's GitHub type (a GitHub App user token): the platform refreshes that token and only hands over the access
+# token, never the refresh token or client secret. Azure DevOps OAuth is not supported: the platform's Azure DevOps
+# OAuth type issues tokens for the Azure DevOps MCP server, not for the REST API.
+PAT_TYPE = "genericSecret"
+PAT_FIELD = "secret"
+GITHUB_OAUTH_TYPE = "githubOAuth2Api"
+OAUTH_FIELD = "accessToken"
+# The credential dropdown stores a credential code, or "@user:<type>" for the credential of that type of whoever
+# starts the flow (the platform's [Aanroeper] choice).
+USER_PREFIX = "@user:"
+
+# Platform refusals (CapabilityError.code) as an actionable message; the platform's own text is not passed on.
+WEIGERING = {
+    "not_found": "De gekozen credential bestaat niet of is niet actief in dit team.",
+    "wrong_type": "De gekozen credential past niet bij deze Git-bron. Gebruik een Secret met een personal access "
+                  "token, of voor GitHub een GitHub-credential.",
+    "ambiguous": "Meer dan één credential past bij de keuze.",
+    "oauth_failed": "De GitHub-koppeling is niet (meer) geautoriseerd. Autoriseer de credential opnieuw.",
+    "unsupported": "Dit platform ondersteunt GitHub OAuth voor plugins nog niet. Gebruik een personal access token.",
+    "invalid_identity": "Er is voor deze uitvoering geen gebruiker bekend. Kies een teamcredential.",
+    "no_scope": "Er is voor deze uitvoering geen team bekend.",
+}
+GEEN_KOPPELING = "Je hebt nog geen GitHub-koppeling. Voeg die toe bij je persoonlijke credentials."
+
+
+async def _per_code(ctx: NodeContext, referentie: str, soorten):
+    """A team credential with this code first, then a fixed personal one; per mode each accepted type in turn.
+
+    The platform checks the type before it decrypts anything, so trying a type reveals nothing.
+    """
+    verkeerd_type = None
+    for modus in ("team", "personal"):
+        for type_naam, veld, oauth2 in soorten:
+            try:
+                return await ctx.credentials.resolve(referentie, mode=modus, expected_type=type_naam,
+                                                     oauth2=oauth2), veld
+            except CapabilityError as fout:
+                if fout.code == "not_found":
+                    break  # no credential with this code in this mode, whatever its type
+                if fout.code != "wrong_type":
+                    raise
+                verkeerd_type = fout
+    raise verkeerd_type or CapabilityError("credentials", "no credential with this code", code="not_found")
 
 
 async def autorisatie(ctx: NodeContext, provider: str, referentie: str) -> dict[str, str]:
-    """The Authorization header for the selected team credential; the value itself is never returned or logged."""
-    credential = await ctx.credentials.resolve(referentie, mode="team", expected_type=CREDENTIAL_TYPE)
-    waarde = credential.values.get(CREDENTIAL_FIELD)
+    """The Authorization header for the selected credential; the value itself is never returned or logged.
+
+    A code selects a Secret with a personal access token, or on GitHub also a GitHub (OAuth) credential.
+    ``@user:githubOAuth2Api`` selects the GitHub credential of the person the flow runs for.
+    """
+    soorten = [(PAT_TYPE, PAT_FIELD, False)]
+    if provider == "github":
+        soorten.append((GITHUB_OAUTH_TYPE, OAUTH_FIELD, True))
+    aanroeper = referentie.startswith(USER_PREFIX)
+    try:
+        if aanroeper:
+            if provider != "github" or referentie != USER_PREFIX + GITHUB_OAUTH_TYPE:
+                raise NodeInputError(WEIGERING["wrong_type"])
+            credential = await ctx.credentials.resolve(GITHUB_OAUTH_TYPE, mode="personal_type",
+                                                       expected_type=GITHUB_OAUTH_TYPE, oauth2=True)
+            veld = OAUTH_FIELD
+        else:
+            credential, veld = await _per_code(ctx, referentie, soorten)
+    except CapabilityError as fout:
+        if fout.code == "not_found" and aanroeper:
+            raise NodeInputError(GEEN_KOPPELING) from None
+        if fout.code in WEIGERING:
+            raise NodeInputError(WEIGERING[fout.code]) from None
+        raise
+    waarde = credential.values.get(veld)
     if not isinstance(waarde, str) or not waarde.strip():
-        raise NodeInputError(f"The selected credential has no {CREDENTIAL_FIELD} value")
+        raise NodeInputError(f"The selected credential has no {veld} value")
     waarde = waarde.strip()
     if provider == "azure_devops":  # an Azure DevOps PAT is sent as Basic auth with an empty user name
         return {"Authorization": "Basic " + base64.b64encode((":" + waarde).encode()).decode()}

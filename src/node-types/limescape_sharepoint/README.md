@@ -29,11 +29,11 @@ Text transfer is UTF-8 only and capped at 1 MB each way; binary files are not su
 
 Graph errors are returned as the HTTP status plus Graph's error code (such as `itemNotFound`), never the response body.
 
-## Studio credential mapping placeholder
+## Credential
 
-`node.py` defines `CREDENTIAL_TYPE` and `TOKEN_FIELD` as explicit `REPLACE_WITH_STUDIO_...` constants. Replace them with the exact credential type and token property supplied by Studio. The node asks the SDK to resolve the selected team or fixed personal credential, then sends only its access token to the fixed `graph.microsoft.com` v1.0 host. It does not implement OAuth or refresh. Do not replace the placeholders with secret values or put tokens in node parameters.
+The node uses a credential of the platform's **Microsoft 365 (OAuth2)** type `microsoft365OAuth2Api`, chosen in a dropdown like the credential fields of the built-in nodes: `[Team] <name>` (a team credential), `[Persoonlijk] <name>` (the editor's own credential, used by everyone who runs the flow) or `[Aanroeper] Microsoft 365` (stored as `@user:microsoft365OAuth2Api`: the credential of whoever starts the flow, which needs a run with a known user). For a code the node tries a team credential first and then a fixed personal one, so the deprecated `credential_mode` field is no longer used or shown. The dropdown replaces a text field (releases up to 0.1.4). An existing node keeps its stored code, and `limescape-plugin compat` reports the change of field type. The node calls `ctx.credentials.resolve(..., expected_type="microsoft365OAuth2Api", oauth2=True)`: the platform refreshes the token and hands the node only `accessToken` and the credential's plain fields, never the refresh token or client secret. The node sends the access token to the fixed `graph.microsoft.com` v1.0 host. This needs a platform version whose plugin credential capability supports every OAuth2 type; an older platform refuses the credential and the node returns its generic credential error.
 
-Requires delegated Graph permissions for the selected sites: `Sites.Read.All` for the read actions, `Sites.ReadWrite.All` for create, update, upload, folder and delete actions.
+The type's default scope covers mail, calendar and contacts. Set the credential's **Scope** to the delegated Graph permissions this node needs and that the app registration was granted: `Sites.Read.All` for the read actions, `Sites.ReadWrite.All` for create, update, upload, folder and delete actions (`offline_access` is always added). Never put tokens in node parameters.
 
 ## Icon
 

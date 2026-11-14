@@ -3,7 +3,7 @@
   "description": "Scans dependency versions per release line in Azure DevOps or GitHub repositories (NuGet, npm, PyPI, Go, Maven, Composer, RubyGems, Cargo), the newest versions and OSV advisories.",
   "fields": {
     "provider": {"label": "Git source"},
-    "credential_code": {"label": "Team credential with the personal access token (type Secret)"},
+    "credential_code": {"label": "Credential (Secret with a personal access token, or GitHub)", "description": "[Aanroeper] GitHub uses the GitHub link of whoever starts the flow."},
     "organization": {"label": "Organization or owner"},
     "project": {"label": "Azure DevOps project"},
     "repositories": {"label": "Repositories (comma-separated; on GitHub also owner/name)"},

@@ -3,7 +3,7 @@
   "description": "Scant dependency-versies per releaselijn in Azure DevOps- of GitHub-repositories (NuGet, npm, PyPI, Go, Maven, Composer, RubyGems, Cargo), de nieuwste versies en OSV-advisories.",
   "fields": {
     "provider": {"label": "Git-bron"},
-    "credential_code": {"label": "Teamcredential met het personal access token (type Secret)"},
+    "credential_code": {"label": "Credential (Secret met een personal access token, of GitHub)", "description": "[Aanroeper] GitHub gebruikt de GitHub-koppeling van wie de flow start."},
     "organization": {"label": "Organisatie of eigenaar"},
     "project": {"label": "Azure DevOps-project"},
     "repositories": {"label": "Repositories (kommagescheiden; op GitHub ook eigenaar/naam)"},

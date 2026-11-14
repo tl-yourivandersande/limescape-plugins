@@ -2,6 +2,8 @@ import base64
 import json
 from pathlib import Path
 
+import pytest
+from limescape_plugin_sdk import CapabilityError
 from limescape_plugin_sdk.testing import FakeContext, run_node
 
 NODE = Path(__file__).resolve().parents[1]
@@ -90,10 +92,12 @@ def _backend(request):
     return {"status": 404, "text": "not found"}
 
 
-def context(*responses, credential_value="synthetic-token", handler=None, resolved=None):
+def context(*responses, credential_value="synthetic-token", handler=None, resolved=None, credential=None):
     def resolver(reference, **kwargs):
         if resolved is not None:
             resolved.append((kwargs.get("expected_type"), kwargs.get("mode"), kwargs.get("oauth2")))
+        if credential is not None:
+            return credential(reference, **kwargs)
         return {"reference": reference, "type_name": CREDENTIAL_TYPE, "values": {"secret": credential_value}}
 
     return FakeContext(
@@ -122,7 +126,7 @@ def http_calls(ctx):
 async def test_missing_credential_stops_before_http():
     ctx = context()
     output = await run(ctx, **scan_params(credential_code=""))
-    assert "Select the team credential with the Azure DevOps personal access token" in output[0]["result"]["error"]
+    assert output[0]["result"]["error"] == "Select the Azure DevOps credential"
     assert not http_calls(ctx)
 
 
@@ -529,3 +533,96 @@ async def test_github_errors_are_safe_and_specific():
     ctx = context(*([missing] * 4))
     result = await run(ctx, **github_params(repositories="web"))
     assert result[0]["result"]["error"] == "Niet gevonden op GitHub (of geen toegang): /repos/acme/web"
+
+
+# ---------------------------------------------------------------- credential dropdown and GitHub OAuth
+
+GITHUB_OAUTH = "githubOAuth2Api"
+
+
+def _github_oauth_only(reference, expected_type, mode, **kwargs):
+    """A GitHub (OAuth) team credential: a Secret is refused on type, like the platform does before decryption."""
+    if expected_type != GITHUB_OAUTH:
+        raise CapabilityError("credentials", "Selected credential has a different type", code="wrong_type")
+    return {"reference": reference, "type_name": GITHUB_OAUTH, "values": {"accessToken": "ghu-access"}}
+
+
+def credential_requests(ctx):
+    return [c.request for c in ctx.calls if c.capability == "credentials"]
+
+
+async def test_github_oauth_credential_is_found_by_its_type_and_scans_with_the_access_token():
+    ctx = context(handler=_github, credential=_github_oauth_only)
+    result = await run(ctx, **github_params())
+    assert "error" not in result[0]["result"]
+    assert credential_requests(ctx) == [
+        {"reference": "gh-team", "mode": "team", "expected_type": CREDENTIAL_TYPE, "oauth2": False},
+        {"reference": "gh-team", "mode": "team", "expected_type": GITHUB_OAUTH, "oauth2": True},
+    ]
+    github_calls = [c for c in http_calls(ctx) if c["url"].startswith("https://api.github.com/")]
+    assert github_calls and all(c["headers"]["Authorization"] == "Bearer ghu-access" for c in github_calls)
+    assert "ghu-access" not in str(result)
+
+
+async def test_caller_choice_uses_the_github_credential_of_whoever_starts_the_flow():
+    ctx = context(handler=_github, credential=_github_oauth_only)
+    result = await run(ctx, **github_params(credential_code="@user:githubOAuth2Api"))
+    assert "error" not in result[0]["result"]
+    assert credential_requests(ctx) == [
+        {"reference": GITHUB_OAUTH, "mode": "personal_type", "expected_type": GITHUB_OAUTH, "oauth2": True}]
+
+
+async def test_fixed_personal_credential_is_tried_after_the_team():
+    """The dropdown also lists the editor's own credentials; their code is not a team credential."""
+    def personal_only(reference, expected_type, mode, **kwargs):
+        if mode == "team":
+            raise CapabilityError("credentials", "No active credential", code="not_found")
+        return _github_oauth_only(reference, expected_type, mode)
+
+    ctx = context(handler=_github, credential=personal_only)
+    result = await run(ctx, **github_params(credential_code="gh-mine"))
+    assert "error" not in result[0]["result"]
+    assert [(r["mode"], r["expected_type"]) for r in credential_requests(ctx)] == [
+        ("team", CREDENTIAL_TYPE), ("personal", CREDENTIAL_TYPE), ("personal", GITHUB_OAUTH)]
+
+
+async def test_azure_devops_only_accepts_a_personal_access_token():
+    ctx = context(credential=_github_oauth_only)
+    output = await run(ctx, **scan_params(credential_code="@user:githubOAuth2Api"))
+    assert "past niet bij deze Git-bron" in output[0]["result"]["error"]
+    assert not credential_requests(ctx) and not http_calls(ctx)
+
+    ctx = context(credential=_github_oauth_only)
+    output = await run(ctx, **scan_params(credential_code="gh-team"))
+    assert "past niet bij deze Git-bron" in output[0]["result"]["error"]
+    assert [r["expected_type"] for r in credential_requests(ctx)] == [CREDENTIAL_TYPE, CREDENTIAL_TYPE]
+    assert not http_calls(ctx)
+
+
+@pytest.mark.parametrize("reference,code,message", [
+    ("@user:githubOAuth2Api", "not_found", "Je hebt nog geen GitHub-koppeling"),
+    ("gh-team", "not_found", "bestaat niet of is niet actief"),
+    ("@user:githubOAuth2Api", "invalid_identity", "geen gebruiker bekend"),
+    ("gh-team", "oauth_failed", "Autoriseer de credential opnieuw"),
+    ("gh-team", "unsupported", "ondersteunt GitHub OAuth voor plugins nog niet"),
+    ("gh-team", "wrong_type", "past niet bij deze Git-bron"),
+])
+async def test_platform_refusals_become_actionable_errors(reference, code, message):
+    def refuse(reference, **kwargs):
+        raise CapabilityError("credentials", "platform text with ghr-secret", code=code)
+
+    ctx = context(credential=refuse)
+    output = await run(ctx, **github_params(credential_code=reference))
+    error = output[0]["result"]["error"]
+    assert message in error
+    assert "ghr-secret" not in error
+    assert not http_calls(ctx)
+
+
+async def test_unexpected_platform_refusal_stays_generic():
+    def refuse(reference, **kwargs):
+        raise CapabilityError("credentials", "platform text with ghr-secret", code="internal")
+
+    output = await run(context(credential=refuse), **github_params())
+    assert output[0]["result"]["error"] == ("Package scan failed; check credentials, permissions, and service "
+                                            "availability")
