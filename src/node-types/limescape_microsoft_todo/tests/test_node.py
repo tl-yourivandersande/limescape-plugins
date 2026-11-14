@@ -3,7 +3,7 @@ from pathlib import Path
 from limescape_plugin_sdk.testing import FakeContext, run_node
 
 NODE_DIR = Path(__file__).resolve().parents[1]
-TYPE = "REPLACE_WITH_STUDIO_MICROSOFT_GRAPH_CREDENTIAL_TYPE"
+TYPE = "microsoft365OAuth2Api"
 TOKEN = "synthetic-graph-token"
 
 
@@ -12,7 +12,7 @@ def context():
         granted=["credentials", "http"],
         credential_resolver=lambda reference, **kwargs: {
             "reference": reference, "type_name": TYPE,
-            "values": {"REPLACE_WITH_STUDIO_ACCESS_TOKEN_FIELD": TOKEN},
+            "values": {"accessToken": TOKEN, "tenantId": "tenant-x"},
         },
         http_responses=[{"status": 200, "json": {"id": "task-1", "title": "Updated"}}],
     )
@@ -26,11 +26,25 @@ async def test_update_task_uses_delegated_me_endpoint_and_patch():
         params={"credential_code": "graph-team", "task_list_id": "list", "task_id": "task", "action": "update_task", "task": {"title": "Updated"}},
         output_key="task_result",
     )
+    assert ctx.calls[0].request == {"reference": "graph-team", "mode": "team", "expected_type": TYPE, "oauth2": True}
     req = ctx.calls[1].request
     assert req["method"] == "PATCH"
     assert req["url"] == "https://graph.microsoft.com/v1.0/me/todo/lists/list/tasks/task"
     assert req["json"] == {"title": "Updated"}
     assert req["headers"]["Authorization"] == f"Bearer {TOKEN}"
+
+
+async def test_caller_choice_uses_the_credential_of_whoever_starts_the_flow():
+    """The dropdown's [Aanroeper] choice: To Do acts for the person who starts the flow."""
+    ctx = context()
+    await run_node(
+        NODE_DIR, ctx,
+        params={"credential_code": "@user:microsoft365OAuth2Api", "task_list_id": "list", "task_id": "task",
+                "action": "update_task", "task": {"title": "Updated"}},
+        output_key="task_result",
+    )
+    assert ctx.calls[0].request == {"reference": TYPE, "mode": "personal_type", "expected_type": TYPE, "oauth2": True}
+    assert ctx.calls[1].request["headers"]["Authorization"] == f"Bearer {TOKEN}"
 
 
 async def test_update_task_rejects_unapproved_fields():

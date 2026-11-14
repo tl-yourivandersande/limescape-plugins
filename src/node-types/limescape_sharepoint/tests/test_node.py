@@ -1,10 +1,11 @@
 from pathlib import Path
 
 import pytest
+from limescape_plugin_sdk import CapabilityError
 from limescape_plugin_sdk.testing import FakeContext, run_node
 
 NODE_DIR = Path(__file__).resolve().parents[1]
-TYPE = "REPLACE_WITH_STUDIO_MICROSOFT_GRAPH_CREDENTIAL_TYPE"
+TYPE = "microsoft365OAuth2Api"
 TOKEN = "synthetic-graph-token"
 GRAPH = "https://graph.microsoft.com/v1.0"
 SITE = f"{GRAPH}/sites/site-1"
@@ -16,7 +17,7 @@ def context(*responses):
         granted=["credentials", "http"],
         credential_resolver=lambda reference, **kwargs: {
             "reference": reference, "type_name": TYPE,
-            "values": {"REPLACE_WITH_STUDIO_ACCESS_TOKEN_FIELD": TOKEN},
+            "values": {"accessToken": TOKEN, "tenantId": "tenant-x"},
         },
         http_responses=list(responses),
     )
@@ -36,7 +37,7 @@ async def test_list_items_uses_fixed_graph_host_and_resolved_credential():
     """List items builds a fixed Graph endpoint and sends the resolved token."""
     ctx = context({"status": 200, "json": {"value": [{"id": "item-1"}]}})
     output = await run(ctx, action="list_items")
-    assert ctx.calls[0].request["expected_type"] == TYPE
+    assert ctx.calls[0].request == {"reference": "graph-team", "mode": "team", "expected_type": TYPE, "oauth2": True}
     request = http_requests(ctx)[0]
     assert request["url"] == f"{SITE}/lists/list-1/items?$expand=fields"
     assert request["headers"]["Authorization"] == f"Bearer {TOKEN}"
@@ -230,3 +231,63 @@ async def test_unsupported_action_is_rejected_before_credentials():
     output = await run(ctx, action="drop_site")
     assert output == {"error": "Unsupported SharePoint action"}
     assert ctx.calls == []
+
+
+# ---------------------------------------------------------------- credential dropdown
+
+
+def credential_requests(ctx):
+    return [(c.request["reference"], c.request["mode"]) for c in ctx.calls if c.capability == "credentials"]
+
+
+def resolving(handler, *responses):
+    return FakeContext(granted=["credentials", "http"], credential_resolver=handler, http_responses=list(responses))
+
+
+def _graph_credential(reference, **kwargs):
+    return {"reference": reference, "type_name": TYPE, "values": {"accessToken": TOKEN}}
+
+
+async def test_caller_choice_uses_the_credential_of_whoever_starts_the_flow():
+    ctx = resolving(_graph_credential, {"status": 200, "json": {"value": []}})
+    output = await run(ctx, action="list_items", credential_code="@user:microsoft365OAuth2Api")
+    assert "error" not in output
+    assert ctx.calls[0].request == {"reference": TYPE, "mode": "personal_type", "expected_type": TYPE, "oauth2": True}
+
+
+async def test_fixed_personal_credential_is_tried_after_the_team():
+    """The dropdown also lists the editor's own credentials; the old credential_mode field is ignored."""
+    def personal_only(reference, mode, **kwargs):
+        if mode == "team":
+            raise CapabilityError("credentials", "No active credential", code="not_found")
+        return _graph_credential(reference)
+
+    ctx = resolving(personal_only, {"status": 200, "json": {"value": []}})
+    output = await run(ctx, action="list_items", credential_code="m365-mine", credential_mode="team")
+    assert "error" not in output
+    assert credential_requests(ctx) == [("m365-mine", "team"), ("m365-mine", "personal")]
+
+
+async def test_caller_choice_of_another_type_is_refused_before_resolving():
+    ctx = resolving(_graph_credential)
+    output = await run(ctx, action="list_items", credential_code="@user:githubOAuth2Api")
+    assert output == {"error": "Select a Microsoft 365 (OAuth2) credential"}
+    assert ctx.calls == []
+
+
+@pytest.mark.parametrize("reference,code,message", [
+    ("@user:microsoft365OAuth2Api", "not_found", "You have no Microsoft 365 credential yet"),
+    ("@user:microsoft365OAuth2Api", "invalid_identity", "No user is known for this run"),
+    ("graph-team", "oauth_failed", "Authorize it again"),
+    ("graph-team", "unsupported", "does not support Microsoft 365 OAuth for plugins yet"),
+    ("graph-team", "wrong_type", "Select a Microsoft 365 (OAuth2) credential"),
+])
+async def test_platform_refusals_become_safe_specific_errors(reference, code, message):
+    def refuse(reference, **kwargs):
+        raise CapabilityError("credentials", "platform text with refresh-secret", code=code)
+
+    ctx = resolving(refuse)
+    output = await run(ctx, action="list_items", credential_code=reference)
+    assert message in output["error"]
+    assert "refresh-secret" not in output["error"]
+    assert not http_requests(ctx)

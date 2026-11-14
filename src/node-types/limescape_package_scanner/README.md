@@ -6,16 +6,32 @@ Supported package types: NuGet (.NET), npm, PyPI (Python), Go, Maven (Java), Com
 
 ## Credentials and platform prerequisite
 
-The node authenticates with a personal access token stored as a **team credential of the platform's generic `genericSecret` type** ("Secret", value field `secret`), selected by its credential code (`credential_code`). The token is sent as Basic auth (empty user name) to Azure DevOps and as a Bearer token to GitHub. `genericSecret` exists on the platform but is only offered for team credentials, and a team administrator must first link the type to the team (credential type links) before a credential of it can be created.
+The `credential_code` field is a dropdown of the team's credentials, like the credential fields of the built-in nodes. It lists:
 
-OAuth is not supported: SDK 0.2.2 resolves OAuth credentials for plugins only for `googleTagManagerOAuth2Api`. The platform's `githubOAuth2Api` (GitHub App) type therefore cannot be used yet, and the `microsoftAzureDevOpsMcpOAuth2Api` type issues tokens for the Azure DevOps MCP server, not for the REST API this node calls. Never put a real token in plugin configuration, code, tests, or this repository.
+| Choice | Credential | Resolved as |
+|--|--|--|
+| `[Team] <name>` | a team credential: a personal access token of the generic `genericSecret` type ("Secret", value field `secret`), or the platform's GitHub type `githubOAuth2Api` (GitHub App user token) | `mode="team"` |
+| `[Persoonlijk] <name>` | the editor's own GitHub credential; everyone who runs the flow uses it | `mode="personal"` |
+| `[Aanroeper] GitHub` | stored as `@user:githubOAuth2Api`: the GitHub credential of whoever starts the flow | `mode="personal_type"` |
 
-Use the least privilege: an Azure DevOps PAT with only Code (Read) for the target project, or a GitHub fine-grained token with only Contents (Read) on the target repositories. The credential is only sent to `dev.azure.com` or `api.github.com`; deps.dev, packagist.org and OSV.dev requests are anonymous.
+The node finds the type itself. For a code it tries a team credential first and then a fixed personal one, and per mode a Secret first and then, on GitHub, the GitHub type. The platform checks the type before it decrypts anything, so a wrong guess reveals nothing. Azure DevOps only accepts a Secret. A Secret is team-only, so it has no `[Aanroeper]` choice. A team administrator must first link `genericSecret` to the team (credential type links) before a credential of it can be created.
+
+A personal access token is sent as Basic auth (empty user name) to Azure DevOps and as a Bearer token to GitHub. A GitHub credential is resolved with `oauth2=True`: the platform refreshes the expiring GitHub App user token, stores the rotated refresh token and hands the node only `accessToken` and the credential's plain fields, never the refresh token or client secret. This needs a platform version whose plugin credential capability supports every OAuth2 type. On an older platform the node stops with "Dit platform ondersteunt GitHub OAuth voor plugins nog niet". The GitHub App's client id and secret are configured on the platform, never in this repository. The token sees the repositories the app is installed on and the user has access to, with the app's permissions, so the app needs Contents (Read).
+
+`[Aanroeper]` only works in runs for which the platform knows the user: a chat, the node editor, the Teams bot, or a scheduled run that carries its owner. A run without a known user stops with "geen gebruiker bekend". Use a team credential there. A deep agent leaves out a flow tool whose node uses `@user:githubOAuth2Api` when the user has no GitHub credential.
+
+The dropdown replaces a text field (releases up to 0.1.4). Existing nodes keep their stored code, which the dropdown shows as the same credential. `limescape-plugin compat` reports the change of field type.
+
+Azure DevOps OAuth is not supported: the `microsoftAzureDevOpsMcpOAuth2Api` type issues tokens for the Azure DevOps MCP server, not for the REST API this node calls. Never put a real token in plugin configuration, code, tests, or this repository.
+
+Platform refusals of a credential (unknown or inactive credential, wrong type, missing GitHub link, authorization needed again) become a specific safe error; the platform's own message is not passed on.
+
+Use the least privilege: an Azure DevOps PAT with only Code (Read) for the target project, a GitHub fine-grained token with only Contents (Read) on the target repositories, or a GitHub App with only Contents (Read). The credential is only sent to `dev.azure.com` or `api.github.com`; deps.dev, packagist.org and OSV.dev requests are anonymous.
 
 ## Parameters
 
 - `provider`: `azure_devops` (default) or `github`.
-- `credential_code`: the code of the team credential (type Secret) that holds the personal access token.
+- `credential_code`: the credential from the dropdown: a credential code, or `@user:githubOAuth2Api` for the GitHub credential of whoever starts the flow; see above.
 - `organization`: the Azure DevOps organization or the GitHub owner (user or organization).
 - `project`: the Azure DevOps project; not used for GitHub.
 - `repositories`: a comma-separated list of up to 10 repositories. On GitHub an entry may be `owner/name` to override the owner. Each entry is used as its label in the report.

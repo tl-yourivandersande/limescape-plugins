@@ -5,12 +5,27 @@ import re
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
-from limescape_plugin_sdk import HttpResponse, NodeContext, NodeInput, NodeInputError
+from limescape_plugin_sdk import CapabilityError, HttpResponse, NodeContext, NodeInput, NodeInputError
 
 GRAPH = "https://graph.microsoft.com/v1.0"
-# TODO(integration): replace these two placeholders with the exact Studio credential contract.
-CREDENTIAL_TYPE = "REPLACE_WITH_STUDIO_MICROSOFT_GRAPH_CREDENTIAL_TYPE"
-TOKEN_FIELD = "REPLACE_WITH_STUDIO_ACCESS_TOKEN_FIELD"
+# The platform's Microsoft 365 (Graph) OAuth type. With oauth2=True the platform refreshes the
+# token and returns only the access token and plain fields, never the refresh token or client secret.
+CREDENTIAL_TYPE = "microsoft365OAuth2Api"
+TOKEN_FIELD = "accessToken"  # noqa: S105 - a field name, not a secret
+# The credential dropdown stores a team or personal credential code, or "@user:<type>" for the
+# credential of that type of whoever starts the flow (the platform's [Aanroeper] choice).
+USER_PREFIX = "@user:"
+# Platform refusals (CapabilityError.code) as a safe, actionable message; the platform's text is not passed on.
+REFUSALS = {
+    "not_found": "The selected credential does not exist or is not active in this team",
+    "wrong_type": "Select a Microsoft 365 (OAuth2) credential",
+    "ambiguous": "More than one credential matches the selection",
+    "oauth_failed": "The Microsoft 365 credential is not authorized (any more). Authorize it again",
+    "unsupported": "This platform does not support Microsoft 365 OAuth for plugins yet",
+    "invalid_identity": "No user is known for this run. Select a team credential",
+    "no_scope": "No team is known for this run",
+}
+NO_LINK = "You have no Microsoft 365 credential yet. Add one under your personal credentials"
 MAX_TEXT_BYTES = 1_000_000
 MAX_PAGES = 10
 DEFAULT_MAX_ITEMS = 100
@@ -205,23 +220,52 @@ async def _drive_action(ctx: NodeContext, inp: NodeInput, action: str, drive: st
         raise NodeInputError("File is not valid UTF-8 text; binary downloads are not supported") from exc
 
 
+async def _access_token(ctx: NodeContext, reference: str) -> str:
+    """The Graph access token of the selected credential; the platform refreshes it and keeps the secrets.
+
+    A code is a team credential, or else a fixed personal one that everyone who runs the flow uses
+    (the deprecated credential_mode field is no longer needed). "@user:" selects the caller's own.
+    """
+    caller = reference.startswith(USER_PREFIX)
+    try:
+        if caller:
+            if reference != USER_PREFIX + CREDENTIAL_TYPE:
+                raise NodeInputError(REFUSALS["wrong_type"])
+            credential = await ctx.credentials.resolve(
+                CREDENTIAL_TYPE, mode="personal_type", expected_type=CREDENTIAL_TYPE, oauth2=True
+            )
+        else:
+            try:
+                credential = await ctx.credentials.resolve(
+                    reference, mode="team", expected_type=CREDENTIAL_TYPE, oauth2=True
+                )
+            except CapabilityError as exc:
+                if exc.code != "not_found":
+                    raise
+                credential = await ctx.credentials.resolve(
+                    reference, mode="personal", expected_type=CREDENTIAL_TYPE, oauth2=True
+                )
+    except CapabilityError as exc:
+        if exc.code == "not_found" and caller:
+            raise NodeInputError(NO_LINK) from None
+        if exc.code in REFUSALS:
+            raise NodeInputError(REFUSALS[exc.code]) from None
+        raise
+    token = credential.values.get(TOKEN_FIELD)
+    if not isinstance(token, str) or not token.strip():
+        raise NodeInputError("Selected credential has no usable Microsoft Graph access token")
+    return token
+
+
 async def execute(ctx: NodeContext, inp: NodeInput):
     try:
         action = _param(inp, "action", "list_items")
         if action not in SITE_ACTIONS | LIST_ACTIONS | DRIVE_ACTIONS:
             raise NodeInputError("Unsupported SharePoint action")
-        mode = _param(inp, "credential_mode", "team")
-        if mode not in {"team", "personal"}:
-            raise NodeInputError("Credential mode must be team or personal")
         reference = _param(inp, "credential_code")
         if not isinstance(reference, str) or not reference.strip():
-            raise NodeInputError("Select a Studio Microsoft Graph credential")
-        credential = await ctx.credentials.resolve(
-            reference.strip(), mode=mode, expected_type=CREDENTIAL_TYPE
-        )
-        token = credential.values.get(TOKEN_FIELD)
-        if not isinstance(token, str) or not token.strip():
-            raise NodeInputError("Selected credential has no usable Microsoft Graph access token")
+            raise NodeInputError("Select a Microsoft 365 (OAuth2) credential")
+        token = await _access_token(ctx, reference.strip())
 
         if action in SITE_ACTIONS:
             result = await _site_action(ctx, inp, action, token)

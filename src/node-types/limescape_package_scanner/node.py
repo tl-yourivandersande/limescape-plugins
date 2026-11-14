@@ -97,7 +97,7 @@ def _bron(ctx: NodeContext, inp: NodeInput, provider: str, headers: dict[str, st
 async def _headers(ctx: NodeContext, inp: NodeInput, provider: str) -> dict[str, str]:
     reference = _param(inp, "credential_code")
     if not isinstance(reference, str) or not reference.strip():
-        raise NodeInputError(f"Select the team credential with the {PROVIDERS[provider]} personal access token")
+        raise NodeInputError(f"Select the {PROVIDERS[provider]} credential")
     return await autorisatie(ctx, provider, reference.strip())
 
 

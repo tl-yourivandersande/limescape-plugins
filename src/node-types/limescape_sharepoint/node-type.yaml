@@ -21,8 +21,27 @@ io:
     result: Microsoft Graph result or a safe error
 form:
   fields:
-    - {name: credential_mode, type: select, label: Credential mode, required: 1, default: team, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}]}
-    - {name: credential_code, type: text, label: Studio Microsoft credential code, required: 1, max_length: 200, resolve_variables: false}
+    # Deprecated: the dropdown below tells team, personal and caller credentials apart. Kept for existing
+    # nodes (compat), left out of the layout so the dialog no longer shows it.
+    - {name: credential_mode, type: select, label: Credential mode, required: 0, default: team, deprecated: true, choices: [{name: Team credential, value: team}, {name: Personal credential, value: personal}]}
+    - name: credential_code
+      type: select
+      label: Microsoft 365 (OAuth2) credential
+      required: 1
+      default: ''
+      resolve_variables: false
+      choices: []
+      lookup:
+        app_label: credentials
+        model_name: Credential
+        # Also the editor's own personal credentials, and an "@user:microsoft365OAuth2Api" choice for the
+        # Microsoft 365 credential of whoever starts the flow.
+        include_personal: true
+        include_user_credential_types: true
+        filter_operator: and
+        filter: {team: current_team_id, is_active: true, user__isnull: true, credential_type__name: microsoft365OAuth2Api}
+        field_value: code
+        field_display: name
     - name: action
       type: select
       label: Action
@@ -118,4 +137,4 @@ form:
     - id: tab-settings
       sections:
         - id: section-properties
-          fields: [credential_mode, credential_code, action, query, site_url, site_id, list_id, drive_id, item_id, path, content, fields, max_items, input_keys, output_key]
+          fields: [credential_code, action, query, site_url, site_id, list_id, drive_id, item_id, path, content, fields, max_items, input_keys, output_key]
